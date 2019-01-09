@@ -1,4 +1,5 @@
 extern crate rand;
+extern crate sluggen;
 
 use rand::Rng;
 use std::cmp::Ordering;
@@ -35,10 +36,15 @@ fn main() {
 }
 
 fn handle_client(stream: UnixStream) {
+    let session_name = sluggen::random();
     let secret_number = rand::thread_rng().gen_range(1, 101);
-    println!("New game! Secret number is {}", secret_number);
+    println!(
+        "{} – New game! Secret number is {}",
+        session_name, secret_number
+    );
 
     let mut stream = BufReader::new(stream);
+
     loop {
         stream
             .get_ref()
@@ -55,15 +61,24 @@ fn handle_client(stream: UnixStream) {
             Err(_) => continue,
         };
 
-        println!("Read guess: {}", guess);
+        println!("{} – Read guess: {}", session_name, guess);
 
         match guess.cmp(&secret_number) {
-            Ordering::Less => stream.get_ref().write(b"Too small!\n").unwrap(),
-            Ordering::Greater => stream.get_ref().write(b"Too big!\n").unwrap(),
+            Ordering::Less => {
+                println!("{} – Too small!", session_name);
+                stream.get_ref().write(b"Too small!\n").unwrap()
+            }
+            Ordering::Greater => {
+                println!("{} – Too big!", session_name);
+                stream.get_ref().write(b"Too big!\n").unwrap()
+            }
             Ordering::Equal => {
+                println!("{} – You win!", session_name);
                 stream.get_ref().write(b"You win!\n").unwrap();
                 break;
             }
         };
     }
+
+    println!("{} – End of game.", session_name);
 }
